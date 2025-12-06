@@ -264,6 +264,9 @@ const unsigned long lfledinterval = 500;
 unsigned long lfledpreviousmillis = 0;
 unsigned long dspreviousMillis;
 long dsinterval = 4000;
+int ZAP_TURN_CYCLES = 1;   // Zapper (servo de giro)
+int P_TURN_CYCLES   = 8;   // Periscopio
+int LF_TURN_CYCLES  = 8;   // Lifeform Scanner
 
 unsigned long lastDebounceTime = 0;
 unsigned long debounceDelay = 50;
@@ -819,7 +822,7 @@ void DomeZapper()
     switch (statez) {
     case 1:
         currentMillis = millis();
-        pwm.setPWM(4, 0, ZAPSERVOMAX);
+        pwm.setPWM(4, 0, ZAPSERVOMAX);      // Animación brazo/lo que ya tenías
         if (currentMillis - zapturnpreviousMillis >= zapturninterval2) {
             statez = 2;
             zapturnpreviousMillis = currentMillis;
@@ -828,8 +831,8 @@ void DomeZapper()
 
     case 2:
         currentMillis = millis();
-        pwm.setPWM(5, 0, ZAPTURNSERVOMAX);
-        ZapLed();
+        pwm.setPWM(5, 0, ZAPTURNSERVOMAX);  // Giro
+        ZapLed();                           // Flashes se mantienen tal cual
         if (currentMillis - zapturnpreviousMillis >= zapturninterval2) {
             statez = 3;
             zapturnpreviousMillis = currentMillis;
@@ -839,13 +842,25 @@ void DomeZapper()
     case 3:
         currentMillis = millis();
         if (currentMillis - zapturnpreviousMillis >= zapturninterval2) {
-            pwm.setPWM(5, 0, ZAPTURNSERVOMIN);
-            statez = 0;
+            pwm.setPWM(5, 0, ZAPTURNSERVOMIN);  // Vuelve a posición base
+
+            zapperturncount++;
+            if (zapperturncount >= ZAP_TURN_CYCLES) {
+                // Fin de todos los giros programados
+                statez = 0;
+                zapperturncount = 0;
+            }
+            else {
+                // Siguiente giro
+                statez = 1;
+            }
+
             zapturnpreviousMillis = currentMillis;
         }
         break;
     }
 }
+
 
 void ZapLed()
 {
@@ -952,7 +967,7 @@ void PeriscopeTurn()
     case 2:
         currentMillis = millis();
         pturncount++;
-        if (pturncount == 3) {
+        if (pturncount >= P_TURN_CYCLES) {   // <-- antes era == 3
             statept = 3;
             pturncount = 0;
         }
@@ -1049,7 +1064,7 @@ void LFTurn()
     case 2:
         currentMillis = millis();
         lfturncount++;
-        if (lfturncount == 6) {
+        if (lfturncount >= LF_TURN_CYCLES) {   // <-- antes era == 6
             statelft = 3;
             lfturncount = 0;
         }
@@ -1059,6 +1074,8 @@ void LFTurn()
         break;
     }
 }
+
+
 void BadMotivatorUp()
 {
     switch (statebmup) {
