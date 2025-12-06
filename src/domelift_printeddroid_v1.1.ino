@@ -1,17 +1,17 @@
-/* DomeLift v1.1-fbn modificado por NandoMadrid
+/* DomeLift v1.1-fbn modified by NandoMadrid
  *
- * Mejoras añadidas:
+ * Added improvements:
  * -------------------------------------------
- * ✓ Switch 1 (pin 40) → Luz del periscopio
- * - ON mientras el periscopio NO está en PBot
- * - OFF al tocar PBot
+ * ✓ Switch 1 (pin 40) → Periscope Light
+ * - ON while the periscope is NOT at PBot
+ * - OFF upon hitting PBot
  *
- * ✓ Switch 2 (pin 41) → Máquina de humo (Fog Machine)
- * - Se activa cuando el Bad Motivator llega al TOP (BMTopVal == LOW)
- * - Permanece 5 segundos
- * - Se desactiva antes si el Bad Motivator baja (BMTopVal vuelve HIGH)
+ * ✓ Switch 2 (pin 41) → Fog Machine
+ * - Activates when the Bad Motivator reaches TOP (BMTopVal == LOW)
+ * - Stays ON for 5 seconds
+ * - Deactivates sooner if Bad Motivator goes down (BMTopVal returns HIGH)
  *
- * Todo el código original se mantiene intacto.
+ * All original code remains intact.
  */
 
 
@@ -45,86 +45,86 @@
 /********************************************************************************************
     PERISCOPE LIGHTSHOW INTEGRATION (ESP32) – DOME LIFT BRIDGE
     -----------------------------------------------------------------------------------------
-    Este módulo permite controlar la placa de iluminación del periscopio (ESP32 Periscope
-    Lightshow de Printed-Droid) a través de comandos enviados desde Shadow / BetterDuino.
-    FLUJO DE COMUNICACIÓN
+    This module allows control of the periscope lighting board (ESP32 Periscope
+    Lightshow from Printed-Droid) via commands sent from Shadow / BetterDuino.
+    COMMUNICATION FLOW
     -----------------------------------------------------------------------------------------
     Shadow  →  BetterDuino  →  DomeLift  →  ESP32 (periscope lightshow)
 
-    1. Shadow envía comandos personalizados del estilo:
+    1. Shadow sends custom commands like:
         %PEQ0   %PEQ5   %PEQ14   %PEQ20
 
-    2. BetterDuino los convierte al formato MarcDuino extendido:
+    2. BetterDuino converts them to the extended MarcDuino format:
         :PEQ0   :PEQ5   :PEQ14   :PEQ20
 
-    3. El DomeLift recibe el comando en el parser principal (Serial / NRF),
+    3. The DomeLift receives the command in the main parser (Serial / NRF),
      
-    interpreta el valor y lo reenvía al ESP32 mediante el puerto UART Serial3:
+    interprets the value and forwards it to the ESP32 via the Serial3 UART port:
 
         Serial3.println("Q0");
         Serial3.println("Q14");
         Serial3.println("Q20");
 
-    4. El ESP32 ejecuta automáticamente el efecto Q correspondiente:
+    4. The ESP32 automatically executes the corresponding Q effect:
         Q0  = R2D2 Classic
         Q1  = Party Mode
         Q2  = Bright Pulse
         ...
         Q20 = Demo Mode
 
-    PUERTO UTILIZADO PARA EL ESP32
+    PORT USED FOR THE ESP32
     -----------------------------------------------------------------------------------------
-    Se utiliza el puerto UART hardware Serial3 del Arduino Mega 2560:
+    The hardware UART port Serial3 of the Arduino Mega 2560 is used:
 
         Mega TX3 (pin 14)  →  ESP32 RX
         Mega RX3 (pin 15)  →  ESP32 TX
         Mega 5V            →  ESP32 5V
         Mega GND           →  ESP32 GND
 
-    DEFINES NECESARIOS
+    REQUIRED DEFINES
     -----------------------------------------------------------------------------------------
-    Se utilizan dos defines para seleccionar el modo de funcionamiento del puerto Serial3:
+    Two defines are used to select the operating mode of the Serial3 port:
 
      
         #define USE_MARCDUINO_SERIAL3
-            → Activa el modo original de Printed-Droid (MarcDuino cableado a 9600 baud)
+            → Activates the original Printed-Droid mode (Wired MarcDuino at 9600 baud)
 
         #define USE_PERISCOPE_ESP32
-            → Activar este para enviar comandos Q0–Q20 al ESP32 del periscopio (9600 baud)
+            → Activate this to send Q0–Q20 commands to the periscope ESP32 (9600 baud)
 
-    NOTA: Solo debe estar activo UNO de los dos defines al mismo tiempo.
-    CONFIGURACIÓN DEL PUERTO SERIAL3
+    NOTE: Only ONE of the two defines must be active at the same time.
+    SERIAL3 PORT CONFIGURATION
     -----------------------------------------------------------------------------------------
-    En setup():
+    In setup():
 
         #ifdef USE_MARCDUINO_SERIAL3
             Serial3.begin(SERIAL_PORT_SPEED); // 9600 baud
         #elif defined(USE_PERISCOPE_ESP32)
-            Serial3.begin(SERIAL_PORT_SPEED); // 9600 baud (Confirmado por el usuario)
+            Serial3.begin(SERIAL_PORT_SPEED); // 9600 baud (Confirmed by user)
         #endif
 
-    PARSEADOR DE COMANDOS :PEQxx
+    :PEQxx COMMAND PARSER
     -----------------------------------------------------------------------------------------
-    Dentro del parser principal de comandos MarcDuino-like:
+    Inside the main MarcDuino-like command parser:
 
-        :PEQ0  → envía Q0 al ESP32
-        :PEQ5  → envía Q5 al ESP32
-        :PEQ20 → envía Q20 al ESP32
+        :PEQ0  → sends Q0 to ESP32
+        :PEQ5  → sends Q5 to ESP32
+        :PEQ20 → sends Q20 to ESP32
 
-    Se usa atoi(&SerialBuffer[4]) para convertir el número ASCII en entero.
-    EJEMPLO:
+    atoi(&SerialBuffer[4]) is used to convert the ASCII number to an integer.
+    EXAMPLE:
         SerialBuffer = ":PEQ14"
         &SerialBuffer[4] = "14"
         atoi("14") = 14
 
-    Solo se permiten valores entre 0 y 20 (efectos oficiales soportados).
-    BENEFICIOS DE ESTA ARQUITECTURA
+    Only values between 0 and 20 are allowed (official supported effects).
+    BENEFITS OF THIS ARCHITECTURE
     -----------------------------------------------------------------------------------------
-    ✔ Mantiene intacto el comportamiento original del DomeLift y MarcDuino
-    ✔ Permite efectos avanzados del periscopio sin cargar el Mega 2560
-    ✔ Mantiene compatibilidad total con Shadow y BetterDuino
-    ✔ Comunicación UART hardware estable (9600 baud)
-    ✔ Modular, limpia y fácil de extender
+    ✔ Keeps the original DomeLift and MarcDuino behavior intact
+    ✔ Allows advanced periscope effects without loading the Mega 2560
+    ✔ Maintains full compatibility with Shadow and BetterDuino
+    ✔ Stable hardware UART communication (9600 baud)
+    ✔ Modular, clean, and easy to extend
 
 *********************************************************************************************/
 
@@ -150,7 +150,7 @@ uint8_t servonum = 0;
 //#define USENRF
 //#define USESERIAL3
 //#define define USE_MARCDUINO_SERIAL3
-#define USE_PERISCOPE_ESP32   // <-- Usamos el domelift de pasarela al ESP32
+#define USE_PERISCOPE_ESP32   // <-- Used as a gateway for the ESP32
 
 #ifdef PRINTEDDROIDV12
   #define NRF_CE  9
@@ -191,7 +191,7 @@ uint8_t servonum = 0;
 #define BMLEDSERVOMIN 200
 #define BMLEDSERVOMAX 500
 
-// --------------------- MOTORES ---------------------
+// --------------------- MOTORS ---------------------
 #define PEIN1 2
 #define PEIN2 3
 #define BMIN1 4
@@ -238,10 +238,10 @@ uint8_t servonum = 0;
 #define buttonPin5 38
 
 
-#define PERISC_LIGHT_PIN 40   // Switch 1 → Luz Periscopio
+#define PERISC_LIGHT_PIN 40   // Switch 1 → Periscope Light
 #define FOG_MACHINE_PIN  41   // Switch 2 → Fog Machine
 
-// --------------------- TIMERS Y VARIABLES ---------------------
+// --------------------- TIMERS AND VARIABLES ---------------------
 unsigned long currentMillis;
 unsigned long zappreviousMillis;
 unsigned long zapinterval = 30;
@@ -264,8 +264,8 @@ unsigned long lfledpreviousmillis = 0;
 unsigned long dspreviousMillis;
 long dsinterval = 4000;
 int ZAP_TURN_CYCLES = 1;
-// Zapper (servo de giro)
-int P_TURN_CYCLES   = 8;   // Periscopio
+// Zapper (rotation servo)
+int P_TURN_CYCLES   = 8;   // Periscope
 int LF_TURN_CYCLES  = 8;
 // Lifeform Scanner
 
@@ -343,12 +343,12 @@ int lastButtonState5 = 0;
 
 char SerialBuffer[SERIALBUFFERSIZE];
 unsigned int BufferIndex = 0;
-bool lastBMTopVal = HIGH;   // estado anterior BadMotivator, para maquina de humo
-// ---------------------- NUEVAS VARIABLES PARA FOG ----------------------
+bool lastBMTopVal = HIGH;   // previous BadMotivator state, for fog machine
+// ---------------------- NEW VARIABLES FOR FOG ----------------------
 bool fogActive = false;
 unsigned long fogStart = 0;
 const unsigned long FOG_DURATION = 5000;
-// 5 segundos de humo
+// 5 seconds of smoke
 
 
 void setup()
@@ -370,12 +370,12 @@ void setup()
     pwm.setPWMFreq(50);
     // standard for analog servos
 
-  // --- CONFIGURACIÓN DEL PUERTO Serial3 ---
+  // --- SERIAL3 PORT CONFIGURATION ---
     #ifdef USE_MARCDUINO_SERIAL3
         Serial3.begin(SERIAL_PORT_SPEED);
-    // Modo antiguo MarcDuino (9600 baud)
+    // Old MarcDuino mode (9600 baud)
     #elif defined(USE_PERISCOPE_ESP32)
-        Serial3.begin(SERIAL_PORT_SPEED); // Modo ESP32 Periscopio (9600 baud)
+        Serial3.begin(SERIAL_PORT_SPEED); // ESP32 Periscope Mode (9600 baud)
         Serial.println("Init Serial3 for periscope ESP32");
     #endif
 
@@ -435,14 +435,14 @@ void setup()
     pinMode(buttonPin4, INPUT_PULLUP);
     pinMode(buttonPin5, INPUT_PULLUP);
 
-    // NUEVOS: salidas para los transistores IRLZ44N
+    // NEW: outputs for IRLZ44N transistors
     pinMode(PERISC_LIGHT_PIN, OUTPUT);
-    // Luz del periscopio
-    pinMode(FOG_MACHINE_PIN,  OUTPUT);   // Máquina de humo
+    // Periscope Light
+    pinMode(FOG_MACHINE_PIN,  OUTPUT);   // Fog Machine
     digitalWrite(PERISC_LIGHT_PIN, LOW);
     digitalWrite(FOG_MACHINE_PIN,  LOW);
 
-    // Escribir los motores a LOW al inicio
+    // Set motors to LOW at startup
     digitalWrite(PEIN1, LOW);
     digitalWrite(PEIN2, LOW);
     digitalWrite(BMIN1, LOW);
@@ -483,7 +483,7 @@ void loop()
     handleButtonInputs();
 
 
-    // ----------- ZAPPER LÓGICA ORIGINAL ----------------
+    // ----------- ZAPPER ORIGINAL LOGIC ----------------
     if (buttonPushCounter == 1)
     {
         DomeZapperUp();
@@ -511,7 +511,7 @@ void loop()
     }
 
 
-    // ----------- PERISCOPE LÓGICA ORIGINAL ----------------
+    // ----------- PERISCOPE ORIGINAL LOGIC ----------------
     if (buttonPushCounter1 == 1)
     {
         PeriscopeUp();
@@ -636,7 +636,7 @@ void loop()
 }
 
 // =========================================================================
-//  NUEVAS FUNCIONES DE MANEJO DE ENTRADA
+//  NEW INPUT HANDLING FUNCTIONS
 // =========================================================================
 
 void handleWirelessInput() {
@@ -705,7 +705,7 @@ void parseSerialInput()
             SerialBuffer[BufferIndex-1] = 0x00;
             if(BufferIndex>1)
             {
-                // Comandos MarcDuino de control de mecanismos (Push Counter)
+                // MarcDuino commands for mechanism control (Push Counter)
                 if (strcmp(SerialBuffer, ":LI00") == 0)
                 {
                     buttonPushCounter = 1;
@@ -731,7 +731,7 @@ void parseSerialInput()
                     buttonPushCounter5 = 2;
                 }
 
-                // Comando de Presencia de Módulo (L?)
+                // Module Presence Command (L?)
                 else if (strcmp(SerialBuffer, ":L?") == 0)
                 {
                     Wire.beginTransmission(BETTERDUINO_ADDRESS);
@@ -739,7 +739,7 @@ void parseSerialInput()
                     Wire.endTransmission();
                 }
                 
-                // Comandos ESP32 Periscope Lightshow (:PEQxx)
+                // ESP32 Periscope Lightshow Commands (:PEQxx)
                 else if (strncmp(SerialBuffer, ":PEQ", 4) == 0) {
                     int mode = atoi(&SerialBuffer[4]);
                     if (mode >= 0 && mode <= 20) {
@@ -775,12 +775,11 @@ void handleButtonInputs() {
 }
 
 // =========================================================================
-//  LÓGICA DE MECANISMOS ORIGINAL (sin cambios)
+//  ORIGINAL MECHANISM LOGIC (unchanged)
 // =========================================================================
 
 void DomeZapperUp()
 {
-// ... (código original 142-147)
     switch (statezapup) {
     case ZAP_MOVE_TOP:
         if (ZTopVal != LOW) {
@@ -807,7 +806,6 @@ void DomeZapperUp()
 
 void DomeZapperDown()
 {
-// ... (código original 148-152)
     switch (statezapdown) {
     case ZAP_MOVE_BOT:
         if (ZBotVal != LOW) {
@@ -836,11 +834,10 @@ void DomeZapperDown()
 
 void DomeZapper()
 {
-// ... (código original 153-165)
     switch (statez) {
     case 1:
         currentMillis = millis();
-        pwm.setPWM(4, 0, ZAPSERVOMAX);      // Animación brazo/lo que ya tenías
+        pwm.setPWM(4, 0, ZAPSERVOMAX);      // Arm animation / original logic
         if (currentMillis - zapturnpreviousMillis >= zapturninterval2) {
             statez = 2;
             zapturnpreviousMillis = currentMillis;
@@ -849,9 +846,9 @@ void DomeZapper()
     case 2:
         currentMillis = millis();
         pwm.setPWM(5, 0, ZAPTURNSERVOMAX);
-        // Giro
+        // Rotation
         ZapLed();
-        // Flashes se mantienen tal cual
+        // Flashes remain as they were
         if (currentMillis - zapturnpreviousMillis >= zapturninterval2) {
             statez = 3;
             zapturnpreviousMillis = currentMillis;
@@ -861,16 +858,16 @@ void DomeZapper()
         currentMillis = millis();
         if (currentMillis - zapturnpreviousMillis >= zapturninterval2) {
             pwm.setPWM(5, 0, ZAPTURNSERVOMIN);
-            // Vuelve a posición base
+            // Returns to base position
 
             zapperturncount++;
             if (zapperturncount >= ZAP_TURN_CYCLES) {
-                // Fin de todos los giros programados
+                // End of all programmed rotations
                 statez = 0;
                 zapperturncount = 0;
             }
             else {
-                // Siguiente giro
+                // Next rotation
                 statez = 1;
             }
 
@@ -883,7 +880,6 @@ void DomeZapper()
 
 void ZapLed()
 {
-// ... (código original 166-174)
     switch (statezl) {
     case 0:
         currentMillis = millis();
@@ -920,7 +916,6 @@ void ZapLed()
 
 void PeriscopeUp()
 {
-// ... (código original 175-177)
     switch (statepup) {
     case P_MOVE_TOP:
         if (PTopVal != LOW) {
@@ -940,7 +935,6 @@ void PeriscopeUp()
 
 void PeriscopeDown()
 {
-// ... (código original 178-182)
     statept = 0;
     pturncount = 0;
 
@@ -963,7 +957,6 @@ void PeriscopeDown()
 
 void PeriscopeTurn()
 {
-// ... (código original 183-191)
     switch (statept) {
     case 0:
         currentMillis = millis();
@@ -984,7 +977,7 @@ void PeriscopeTurn()
     case 2:
         currentMillis = millis();
         pturncount++;
-        if (pturncount >= P_TURN_CYCLES) {   // <-- antes era == 3
+        if (pturncount >= P_TURN_CYCLES) {
             statept = 3;
             pturncount = 0;
         }
@@ -1000,7 +993,6 @@ void PeriscopeTurn()
 
 void LifeformUp()
 {
-// ... (código original 192-195)
     switch (statelfup) {
     case LF_MOVE_TOP:
         if (LFTopVal != LOW) {
@@ -1027,7 +1019,6 @@ void LifeformUp()
 
 void LifeformDown()
 {
-// ... (código original 196-201)
     statelft = 0;
     lfturncount = 0;
 
@@ -1059,7 +1050,6 @@ void LifeformDown()
 
 void LFTurn()
 {
-// ... (código original 202-210)
     switch (statelft) {
     case 0:
         currentMillis = millis();
@@ -1080,7 +1070,7 @@ void LFTurn()
     case 2:
         currentMillis = millis();
         lfturncount++;
-        if (lfturncount >= LF_TURN_CYCLES) {   // <-- antes era == 6
+        if (lfturncount >= LF_TURN_CYCLES) {
             statelft = 3;
             lfturncount = 0;
         }
@@ -1094,7 +1084,6 @@ void LFTurn()
 
 void BadMotivatorUp()
 {
-// ... (código original 211-215)
     switch (statebmup) {
 
     case BM_MOVE_TOP:
@@ -1122,7 +1111,6 @@ void BadMotivatorUp()
 
 void BadMotivatorDown()
 {
-// ... (código original 216-220)
     switch (statebmdown) {
     case BM_MOVE_BOT:
         if (BMBotVal != LOW) {
@@ -1154,7 +1142,6 @@ void BadMotivatorDown()
 
 void LightsaberUp()
 {
-// ... (código original 221-225)
     switch (statelsup) {
     case LS_MOVE_TOP:
         if (LSTopVal != LOW) {
@@ -1181,7 +1168,6 @@ void LightsaberUp()
 
 void LightsaberDown()
 {
-// ... (código original 226-230)
     switch (statelsdown) {
     case LS_MOVE_BOT:
         if (LSBotVal != LOW) {
@@ -1212,7 +1198,6 @@ void LightsaberDown()
 
 void DrinkServerUp()
 {
-// ... (código original 231-235)
     switch (statedsup) {
     case DS_MOVE_TOP:
         if (DSTopVal != LOW) {
@@ -1239,7 +1224,6 @@ void DrinkServerUp()
 
 void DrinkServerDown()
 {
-// ... (código original 236-240)
     switch (statedsdown) {
     case DS_MOVE_BOT:
         if (DSBotVal != LOW) {
@@ -1272,7 +1256,6 @@ void DrinkServerDown()
 
 void readlimits()
 {
-// ... (código original 241-242)
     PBotVal = digitalRead(PBot);
     PTopVal = digitalRead(PTop);
     BMTopVal = digitalRead(BMTop);
@@ -1292,7 +1275,6 @@ void readlimits()
 
 void servoSetup()
 {
-// ... (código original 243-246)
     pwm.setPWM(0, 0, BMSERVOMIN);
     pwm.setPWM(1, 0, ZSERVOMIN);
     pwm.setPWM(2, 0, LSSERVOMIN);
@@ -1310,19 +1292,19 @@ void servoSetup()
     pwm.setPWM(12, 0, DSSERVOMIN);
 }
 /* ---------------------------------------------------------
-   NUEVAS FUNCIONES PERSONALIZADAS
+   NEW CUSTOM FUNCTIONS
    --------------------------------------------------------- */
 
 // ---------------------- PERISCOPE LIGHT CONTROL ----------------------
-// Luz ON cuando el periscopio NO está en la posición inferior (PBotVal == HIGH)
-// Luz OFF cuando el periscopio toca el final inferior (PBotVal == LOW)
+// Light ON when the periscope is NOT in the bottom position (PBotVal == HIGH)
+// Light OFF when the periscope hits the bottom limit (PBotVal == LOW)
 void updatePeriscopeLight() {
 
     if (PBotVal == HIGH) {
-        // El periscopio está subiendo o arriba → luz encendida
+        // Periscope is moving up or is up → light ON
         digitalWrite(PERISC_LIGHT_PIN, HIGH);
     } else {
-        // Toca fondo → apagamos luz
+        // Hits bottom limit → turn light OFF
         digitalWrite(PERISC_LIGHT_PIN, LOW);
     }
 }
@@ -1330,11 +1312,11 @@ void updatePeriscopeLight() {
 
 
 // ---------------------- FOG MACHINE CONTROL --------------------------
-// Enciende la máquina de humo cuando el Bad Motivator llega al TOP (BMTopVal == LOW).
-// La mantiene ON durante 5 segundos y la apaga si baja antes.
+// Turns on the fog machine when the Bad Motivator reaches TOP (BMTopVal == LOW).
+// Keeps it ON for 5 seconds and turns it off if it lowers sooner.
 void updateFogMachine() {
 
-    // Disparo SOLO al llegar al TOP (flanco)
+    // Trigger ONLY upon reaching TOP (edge detection)
     if (!fogActive && BMTopVal == LOW && lastBMTopVal == HIGH) {
         fogActive = true;
         fogStart = millis();
@@ -1343,19 +1325,19 @@ void updateFogMachine() {
 
     if (fogActive) {
 
-        // Apagado por tiempo
+        // Turn off by timeout
         if (millis() - fogStart >= FOG_DURATION) {
             fogActive = false;
             digitalWrite(FOG_MACHINE_PIN, LOW);
         }
-        // Apagado si empieza a bajar
+        // Turn off if it starts to lower
         else if (BMTopVal == HIGH) {
             fogActive = false;
             digitalWrite(FOG_MACHINE_PIN, LOW);
         }
     }
 
-    // Memorizar estado para el siguiente loop
+    // Store state for the next loop
     lastBMTopVal = BMTopVal;
 }
 
@@ -1363,7 +1345,6 @@ void updateFogMachine() {
 // ---------------------- SerialOut (debug) ----------------------------
 void SerialOut()
 {
-// ... (código original 255-257)
     Serial.print("B:");  Serial.print(buttonPushCounter);  Serial.print("\t");
     Serial.print("B1:"); Serial.print(buttonPushCounter1); Serial.print("\t");
     Serial.print("B2:"); Serial.print(buttonPushCounter2); Serial.print("\t");
@@ -1391,5 +1372,5 @@ void SerialOut()
 }
 
 /* ---------------------------------------------------------
-   FIN DEL ARCHIVO
+   END OF FILE
    --------------------------------------------------------- */
