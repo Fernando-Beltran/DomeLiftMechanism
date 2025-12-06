@@ -615,6 +615,9 @@ void loop()
     }
     else if (buttonPushCounter == 2)
     {
+        statez = 1;
+        statezl = 0;
+        zapflashcount = 0;
         pwm.setPWM(5, 0, ZAPTURNSERVOMIN);
         pwm.setPWM(4, 0, ZAPSERVOMIN);
         pwm.setPWM(8, 0, 4096);
@@ -627,6 +630,7 @@ void loop()
         statezapdown = ZAP_MOVE_BOT;
         statez = 1;
         statezl = 0;
+        zapflashcount = 0;
     }
 
 
@@ -648,6 +652,7 @@ void loop()
         statepup = P_MOVE_TOP;
         statepdown = P_MOVE_BOT;
         statept = 0;
+        pturncount = 0;
     }
 
 
@@ -902,6 +907,9 @@ void PeriscopeUp()
 
 void PeriscopeDown()
 {
+    statept = 0;
+    pturncount = 0;
+
     switch (statepdown) {
     case P_MOVE_BOT:
         if (PBotVal != LOW) {
