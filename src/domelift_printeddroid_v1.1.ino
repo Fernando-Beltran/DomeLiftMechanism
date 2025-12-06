@@ -1,17 +1,17 @@
-/*  DomeLift v1.1-fbn modificado por NandoMadrid
+/* DomeLift v1.1-fbn modificado por NandoMadrid
  *
- *  Mejoras añadidas:
- *  -------------------------------------------
- *  ✓ Switch 1 (pin 40) → Luz del periscopio
- *      - ON mientras el periscopio NO está en PBot
- *      - OFF al tocar PBot
+ * Mejoras añadidas:
+ * -------------------------------------------
+ * ✓ Switch 1 (pin 40) → Luz del periscopio
+ * - ON mientras el periscopio NO está en PBot
+ * - OFF al tocar PBot
  *
- *  ✓ Switch 2 (pin 41) → Máquina de humo (Fog Machine)
- *      - Se activa cuando el zapper llega al TOP (ZTopVal == LOW)
- *      - Permanece 5 segundos
- *      - Se desactiva antes si el zapper baja (ZTopVal vuelve HIGH)
+ * ✓ Switch 2 (pin 41) → Máquina de humo (Fog Machine)
+ * - Se activa cuando el Bad Motivator llega al TOP (BMTopVal == LOW)
+ * - Permanece 5 segundos
+ * - Se desactiva antes si el Bad Motivator baja (BMTopVal vuelve HIGH)
  *
- *  Todo el código original se mantiene intacto.
+ * Todo el código original se mantiene intacto.
  */
 
 
@@ -25,7 +25,8 @@
 // NOTE: READ THIS
 // I suggest you focus on connecting one mechanism first, the Lifeform Scanner or Periscope, to learn
 // how the code will interact and fault find switch errors
-// Wire up the components required and keep the belt tension on the pulleys firm, but not too tight,
+// Wire up the components required and keep the belt 
+// tension on the pulleys firm, but not too tight,
 // make sure the lifts slide easily before adding the belt tension
 // Run this code to the serial monitor on your computer while plugged in to the Arduino Mega 2560,
 // Baud rate 57600, to show the limit switches ZBOT, ZTOP for example.
@@ -46,7 +47,6 @@
     -----------------------------------------------------------------------------------------
     Este módulo permite controlar la placa de iluminación del periscopio (ESP32 Periscope
     Lightshow de Printed-Droid) a través de comandos enviados desde Shadow / BetterDuino.
-
     FLUJO DE COMUNICACIÓN
     -----------------------------------------------------------------------------------------
     Shadow  →  BetterDuino  →  DomeLift  →  ESP32 (periscope lightshow)
@@ -58,7 +58,8 @@
         :PEQ0   :PEQ5   :PEQ14   :PEQ20
 
     3. El DomeLift recibe el comando en el parser principal (Serial / NRF),
-       interpreta el valor y lo reenvía al ESP32 mediante el puerto UART Serial3:
+     
+    interpreta el valor y lo reenvía al ESP32 mediante el puerto UART Serial3:
 
         Serial3.println("Q0");
         Serial3.println("Q14");
@@ -84,22 +85,22 @@
     -----------------------------------------------------------------------------------------
     Se utilizan dos defines para seleccionar el modo de funcionamiento del puerto Serial3:
 
+     
         #define USE_MARCDUINO_SERIAL3
             → Activa el modo original de Printed-Droid (MarcDuino cableado a 9600 baud)
 
         #define USE_PERISCOPE_ESP32
-            → Activar este para enviar comandos Q0–Q20 al ESP32 del periscopio (115200 baud)
+            → Activar este para enviar comandos Q0–Q20 al ESP32 del periscopio (9600 baud)
 
     NOTA: Solo debe estar activo UNO de los dos defines al mismo tiempo.
-
     CONFIGURACIÓN DEL PUERTO SERIAL3
     -----------------------------------------------------------------------------------------
     En setup():
 
         #ifdef USE_MARCDUINO_SERIAL3
-            Serial3.begin(9600);
+            Serial3.begin(SERIAL_PORT_SPEED); // 9600 baud
         #elif defined(USE_PERISCOPE_ESP32)
-            Serial3.begin(115200);
+            Serial3.begin(SERIAL_PORT_SPEED); // 9600 baud (Confirmado por el usuario)
         #endif
 
     PARSEADOR DE COMANDOS :PEQxx
@@ -111,20 +112,18 @@
         :PEQ20 → envía Q20 al ESP32
 
     Se usa atoi(&SerialBuffer[4]) para convertir el número ASCII en entero.
-
     EJEMPLO:
         SerialBuffer = ":PEQ14"
         &SerialBuffer[4] = "14"
         atoi("14") = 14
 
     Solo se permiten valores entre 0 y 20 (efectos oficiales soportados).
-
     BENEFICIOS DE ESTA ARQUITECTURA
     -----------------------------------------------------------------------------------------
     ✔ Mantiene intacto el comportamiento original del DomeLift y MarcDuino
     ✔ Permite efectos avanzados del periscopio sin cargar el Mega 2560
     ✔ Mantiene compatibilidad total con Shadow y BetterDuino
-    ✔ Comunicación UART hardware estable (115200 baud)
+    ✔ Comunicación UART hardware estable (9600 baud)
     ✔ Modular, limpia y fácil de extender
 
 *********************************************************************************************/
@@ -150,7 +149,7 @@ uint8_t servonum = 0;
 
 //#define USENRF
 //#define USESERIAL3
-//#define USE_MARCDUINO_SERIAL3
+//#define define USE_MARCDUINO_SERIAL3
 #define USE_PERISCOPE_ESP32   // <-- Usamos el domelift de pasarela al ESP32
 
 #ifdef PRINTEDDROIDV12
@@ -264,34 +263,44 @@ const unsigned long lfledinterval = 500;
 unsigned long lfledpreviousmillis = 0;
 unsigned long dspreviousMillis;
 long dsinterval = 4000;
-int ZAP_TURN_CYCLES = 1;   // Zapper (servo de giro)
+int ZAP_TURN_CYCLES = 1;
+// Zapper (servo de giro)
 int P_TURN_CYCLES   = 8;   // Periscopio
-int LF_TURN_CYCLES  = 8;   // Lifeform Scanner
+int LF_TURN_CYCLES  = 8;
+// Lifeform Scanner
 
 unsigned long lastDebounceTime = 0;
 unsigned long debounceDelay = 50;
 // sates to select from the different case functions
-static enum { ZAP_MOVE_TOP, ZAP_TOP } statezapup;     //zapper up
+static enum { ZAP_MOVE_TOP, ZAP_TOP } statezapup;
+//zapper up
 static enum { ZAP_MOVE_BOT, ZAP_BOT } statezapdown;   // zapper down
-static enum { P_MOVE_TOP,   P_TOP } statepup;         //periscope up
+static enum { P_MOVE_TOP,   P_TOP } statepup;
+//periscope up
 static enum { P_MOVE_BOT,   P_BOT } statepdown;       //periscope down
 
-static enum { LF_MOVE_TOP,  LF_TOP } statelfup;       //lifeform scanner up
+static enum { LF_MOVE_TOP,  LF_TOP } statelfup;
+//lifeform scanner up
 static enum { LF_MOVE_BOT,  LF_BOT } statelfdown;     //lifeform scanner down
-static enum { BM_MOVE_TOP,  BM_TOP } statebmup;       //Bad Motivator up
+static enum { BM_MOVE_TOP,  BM_TOP } statebmup;
+//Bad Motivator up
 static enum { BM_MOVE_BOT,  BM_BOT } statebmdown;     //Bad Motivator down
-static enum { LS_MOVE_TOP,  LS_TOP } statelsup;       //Lightsaber up
+static enum { LS_MOVE_TOP,  LS_TOP } statelsup;
+//Lightsaber up
 static enum { LS_MOVE_BOT,  LS_BOT } statelsdown;     //Lightsaber down
-static enum { DS_MOVE_TOP,  DS_TOP } statedsup;       //Drink Server up
+static enum { DS_MOVE_TOP,  DS_TOP } statedsup;
+//Drink Server up
 static enum { DS_MOVE_BOT,  DS_BOT } statedsdown;     //Drink Server down
 
 int statez;    //zapper arm lift and turn
-int statezl;   //zapper led
+int statezl;
+//zapper led
 int statept;   //periscope turn
 int statelf;   //lifeform scanner
 int statelft;  //lifeform scanner turn
 int statebml;  //bad motivator led
-int stateds;   //drink server arm
+int stateds;
+//drink server arm
 
 // storage for limit switch values
 int PTopVal = LOW;
@@ -306,7 +315,6 @@ int LFTopVal = LOW;
 int LFBotVal = LOW;
 int DSTopVal = LOW;
 int DSBotVal = LOW;
-
 // input button
 int buttonPushCounter = 0;
 int buttonPushCounter1 = 0;
@@ -339,7 +347,8 @@ bool lastBMTopVal = HIGH;   // estado anterior BadMotivator, para maquina de hum
 // ---------------------- NUEVAS VARIABLES PARA FOG ----------------------
 bool fogActive = false;
 unsigned long fogStart = 0;
-const unsigned long FOG_DURATION = 5000; // 5 segundos de humo
+const unsigned long FOG_DURATION = 5000;
+// 5 segundos de humo
 
 
 void setup()
@@ -348,7 +357,7 @@ void setup()
 
     Serial.println();
     Serial.println("=== DomeLift boot ===");
-    Serial.println("Version: v1.1-fbn");
+    Serial.println("Version: v1.1-fbn-refactored-9600");
     Serial.print("ESP32 bridge: ");
     #ifdef USE_PERISCOPE_ESP32
     Serial.println("ENABLED (Serial3 @9600)");
@@ -358,15 +367,16 @@ void setup()
 
     Wire.begin();
     pwm.begin();
-    pwm.setPWMFreq(50); // standard for analog servos
+    pwm.setPWMFreq(50);
+    // standard for analog servos
 
   // --- CONFIGURACIÓN DEL PUERTO Serial3 ---
     #ifdef USE_MARCDUINO_SERIAL3
-        Serial3.begin(SERIAL_PORT_SPEED);     // Modo antiguo MarcDuino
+        Serial3.begin(SERIAL_PORT_SPEED);
+    // Modo antiguo MarcDuino (9600 baud)
     #elif defined(USE_PERISCOPE_ESP32)
-        Serial3.begin(SERIAL_PORT_SPEED);   // Modo ESP32 Periscopio
-      Serial.println("Init Serial for periscope 3");
-        
+        Serial3.begin(SERIAL_PORT_SPEED); // Modo ESP32 Periscopio (9600 baud)
+        Serial.println("Init Serial3 for periscope ESP32");
     #endif
 
     #ifdef PRINTEDDROIDV12
@@ -378,12 +388,15 @@ void setup()
           Serial.println("nrf chip is not connected");
         }
         nrf_radio.setPALevel(RF24_PA_MAX);
-        nrf_radio.openReadingPipe(0, nrf_address); // set the address
-        nrf_radio.startListening(); // set module as receiver
+        nrf_radio.openReadingPipe(0, nrf_address);
+        // set the address
+        nrf_radio.startListening();
+        // set module as receiver
       #endif
 
       #ifdef USESERIAL3
-        Serial3.begin(9600); //Serial to receive from marcduino slave board the "%" commands
+        Serial3.begin(9600);
+    //Serial to receive from marcduino slave board the "%" commands
       #endif
     #endif
 
@@ -423,7 +436,8 @@ void setup()
     pinMode(buttonPin5, INPUT_PULLUP);
 
     // NUEVOS: salidas para los transistores IRLZ44N
-    pinMode(PERISC_LIGHT_PIN, OUTPUT);   // Luz del periscopio
+    pinMode(PERISC_LIGHT_PIN, OUTPUT);
+    // Luz del periscopio
     pinMode(FOG_MACHINE_PIN,  OUTPUT);   // Máquina de humo
     digitalWrite(PERISC_LIGHT_PIN, LOW);
     digitalWrite(FOG_MACHINE_PIN,  LOW);
@@ -446,167 +460,27 @@ void setup()
     servoSetup();
     delay(1000);
 }
+
 void loop()
 {
     currentMillis = millis();
 
+    // ------------------- INPUT NRF & SERIAL3 -------------------
     #ifdef PRINTEDDROIDV12
-      #ifdef USENRF
-
-        if(nrf_radio.available()) {
-          char nrf_buffer[32] = {0};
-          nrf_radio.read(&nrf_buffer, sizeof(nrf_buffer));
-          Serial.print("nrf received:");
-          Serial.println(nrf_buffer);
-          if (strlen(nrf_buffer)>=2){
-            if (strcmp(nrf_buffer,"PE")==0){
-              buttonPushCounter1++;
-            }
-            if (strcmp(nrf_buffer,"LF")==0){
-              buttonPushCounter2++;
-            }
-            if (strcmp(nrf_buffer,"LS")==0){
-              buttonPushCounter4++;
-            }
-            if (strcmp(nrf_buffer,"ZA")==0){
-              buttonPushCounter++;
-            }
-            if (strcmp(nrf_buffer,"BM")==0){
-              buttonPushCounter3++;
-            }
-          }
-          else {
-            nrf_buffer[0]=0;
-          }
-        }
-      #endif
-
-      #ifdef USESERIAL3
-      char buffer[32] = {0};
-      unsigned char index = 0;
-      while (Serial3.available()>0){
-        char c = Serial3.read();
-        if (c == '\r'){
-          Serial.print("received on serial3:");
-          Serial.println(buffer);
-          if (sizeof(buffer) >=2){
-            if (strcmp(buffer,"PE") == 0){ buttonPushCounter1++; }
-            else if (strcmp(buffer,"LF") == 0){ buttonPushCounter2++; }
-            else if (strcmp(buffer,"LS") == 0){ buttonPushCounter4++; }
-            else if (strcmp(buffer,"BM") == 0){ buttonPushCounter3++; }
-            else if (strcmp(buffer,"ZA") == 0){ buttonPushCounter++; }
-            buffer[0] = 0;
-            index = 0;
-          }
-        }
-        else {
-          if (index < 31) {
-            buffer[index++] = c;
-            buffer[index] = 0;
-          }
-        }
-      }
-      #endif
+        handleWirelessInput();
     #endif
 
-
     // ------------------- INPUT SERIAL MARCDUINO -------------------
-    if (Serial.available())
-    {
-        char c = Serial.read();
-
-        Serial.print("RX CHAR -> ");
-        if (c == '\r') Serial.println("\\r");
-        else if (c == '\n') Serial.println("\\n");
-        else Serial.println(c);
-
-        if (c == '\n')
-            return;
-        SerialBuffer[BufferIndex++] = c;
-        if ((c == '\r') || (BufferIndex == SERIALBUFFERSIZE))
-        {
-            SerialBuffer[BufferIndex-1] = 0x00;
-
-            if(BufferIndex>1)
-            {
-                if (strcmp(SerialBuffer, ":LI00") == 0)
-                {
-                    buttonPushCounter = 1;
-                    buttonPushCounter1= 1;
-                    buttonPushCounter2= 1;
-                    buttonPushCounter3= 1;
-                    buttonPushCounter4= 1;
-                    buttonPushCounter5= 1;
-                }
-                else if (strcmp(SerialBuffer, ":LI07") == 0){ buttonPushCounter3++; }
-                else if (strcmp(SerialBuffer, ":LI08") == 0){ buttonPushCounter++; }
-                else if (strcmp(SerialBuffer, ":LI09") == 0){ buttonPushCounter4++; }
-                else if (strcmp(SerialBuffer, ":LI10") == 0){ buttonPushCounter2++; }
-                else if (strcmp(SerialBuffer, ":LI11") == 0){ buttonPushCounter1++; }
-
-                if (strcmp(SerialBuffer, ":LI99") == 0)
-                {
-                    buttonPushCounter  = 2;
-                    buttonPushCounter1 = 2;
-                    buttonPushCounter2 = 2;
-                    buttonPushCounter3 = 2;
-                    buttonPushCounter4 = 2;
-                    buttonPushCounter5 = 2;
-                }
-                else if (strcmp(SerialBuffer, ":L?") == 0)
-                {
-                    Wire.beginTransmission(BETTERDUINO_ADDRESS);
-
-                    Wire.write(":L?01\r");
-                    Wire.endTransmission();
-                }
-                else if (strcmp(SerialBuffer, ":L?") == 0)    // Check Module Presence
-                {
-                    Wire.beginTransmission(BETTERDUINO_ADDRESS);
-                    Wire.write(":L?01\r");
-                    Wire.endTransmission();        
-                }
-                else if (strncmp(SerialBuffer, ":PEQ", 4) == 0) {
-                  int mode = atoi(&SerialBuffer[4]);
-                  if (mode >= 0 && mode <= 20) {
-                      Serial3.print("Q");
-                      Serial3.println(mode);
-                      Serial.print("Serial3 TX -> Q");
-                      Serial.println(mode);
-                  }
-              }
-            }
-
-            memset(SerialBuffer, 0x00, SERIALBUFFERSIZE);
-            BufferIndex = 0;
-        }
-    }
-
+    parseSerialInput();
 
     // ------------------- READ LIMITS -------------------
     readlimits();
-
     // ------------------- NEW: UPDATE PERISCOPE LIGHT -------------------
     updatePeriscopeLight();
-
     // ------------------- NEW: UPDATE FOG MACHINE -----------------------
     updateFogMachine();
-
-
     // ------------------- READ BUTTON STATES -------------------
-    buttonState =  digitalRead(buttonPin);
-    buttonState1 = digitalRead(buttonPin1);
-    buttonState2 = digitalRead(buttonPin2);
-    buttonState3 = digitalRead(buttonPin3);
-    buttonState4 = digitalRead(buttonPin4);
-    buttonState5 = digitalRead(buttonPin5);
-
-    if (buttonState != lastButtonState)     if (buttonState == LOW)  buttonPushCounter++;
-    if (buttonState1 != lastButtonState1)   if (buttonState1 == LOW) buttonPushCounter1++;
-    if (buttonState2 != lastButtonState2)   if (buttonState2 == LOW) buttonPushCounter2++;
-    if (buttonState3 != lastButtonState3)   if (buttonState3 == LOW) buttonPushCounter3++;
-    if (buttonState4 != lastButtonState4)   if (buttonState4 == LOW) buttonPushCounter4++;
-    if (buttonState5 != lastButtonState5)   if (buttonState5 == LOW) buttonPushCounter5++;
+    handleButtonInputs();
 
 
     // ----------- ZAPPER LÓGICA ORIGINAL ----------------
@@ -761,8 +635,152 @@ void loop()
     lastButtonState5 = buttonState5;
 }
 
+// =========================================================================
+//  NUEVAS FUNCIONES DE MANEJO DE ENTRADA
+// =========================================================================
+
+void handleWirelessInput() {
+    #ifdef USENRF
+        if(nrf_radio.available()) {
+          char nrf_buffer[32] = {0};
+          nrf_radio.read(&nrf_buffer, sizeof(nrf_buffer));
+          Serial.print("nrf received:");
+          Serial.println(nrf_buffer);
+          if (strlen(nrf_buffer)>=2){
+            if (strcmp(nrf_buffer,"PE")==0){ buttonPushCounter1++; }
+            if (strcmp(nrf_buffer,"LF")==0){ buttonPushCounter2++; }
+            if (strcmp(nrf_buffer,"LS")==0){ buttonPushCounter4++; }
+            if (strcmp(nrf_buffer,"ZA")==0){ buttonPushCounter++;  }
+            if (strcmp(nrf_buffer,"BM")==0){ buttonPushCounter3++; }
+          }
+          else {
+            nrf_buffer[0]=0;
+          }
+        }
+    #endif
+
+    #ifdef USESERIAL3
+        char buffer[32] = {0};
+        unsigned char index = 0;
+        while (Serial3.available()>0){
+            char c = Serial3.read();
+            if (c == '\r'){
+                Serial.print("received on serial3:");
+                Serial.println(buffer);
+                if (sizeof(buffer) >=2){
+                    if (strcmp(buffer,"PE") == 0){ buttonPushCounter1++; }
+                    else if (strcmp(buffer,"LF") == 0){ buttonPushCounter2++; }
+                    else if (strcmp(buffer,"LS") == 0){ buttonPushCounter4++; }
+                    else if (strcmp(buffer,"BM") == 0){ buttonPushCounter3++; }
+                    else if (strcmp(buffer,"ZA") == 0){ buttonPushCounter++; }
+                    buffer[0] = 0;
+                    index = 0;
+                }
+            }
+            else {
+                if (index < 31) {
+                    buffer[index++] = c;
+                    buffer[index] = 0;
+                }
+            }
+        }
+    #endif
+}
+
+void parseSerialInput()
+{
+    if (Serial.available())
+    {
+        char c = Serial.read();
+        Serial.print("RX CHAR -> ");
+        if (c == '\r') Serial.println("\\r");
+        else if (c == '\n') Serial.println("\\n");
+        else Serial.println(c);
+
+        if (c == '\n')
+            return;
+        SerialBuffer[BufferIndex++] = c;
+        if ((c == '\r') || (BufferIndex == SERIALBUFFERSIZE))
+        {
+            SerialBuffer[BufferIndex-1] = 0x00;
+            if(BufferIndex>1)
+            {
+                // Comandos MarcDuino de control de mecanismos (Push Counter)
+                if (strcmp(SerialBuffer, ":LI00") == 0)
+                {
+                    buttonPushCounter = 1;
+                    buttonPushCounter1= 1;
+                    buttonPushCounter2= 1;
+                    buttonPushCounter3= 1;
+                    buttonPushCounter4= 1;
+                    buttonPushCounter5= 1;
+                }
+                else if (strcmp(SerialBuffer, ":LI07") == 0){ buttonPushCounter3++; } // BM
+                else if (strcmp(SerialBuffer, ":LI08") == 0){ buttonPushCounter++;  } // Zapper
+                else if (strcmp(SerialBuffer, ":LI09") == 0){ buttonPushCounter4++; } // LS
+                else if (strcmp(SerialBuffer, ":LI10") == 0){ buttonPushCounter2++; } // LF
+                else if (strcmp(SerialBuffer, ":LI11") == 0){ buttonPushCounter1++; } // PE
+
+                if (strcmp(SerialBuffer, ":LI99") == 0)
+                {
+                    buttonPushCounter  = 2;
+                    buttonPushCounter1 = 2;
+                    buttonPushCounter2 = 2;
+                    buttonPushCounter3 = 2;
+                    buttonPushCounter4 = 2;
+                    buttonPushCounter5 = 2;
+                }
+
+                // Comando de Presencia de Módulo (L?)
+                else if (strcmp(SerialBuffer, ":L?") == 0)
+                {
+                    Wire.beginTransmission(BETTERDUINO_ADDRESS);
+                    Wire.write(":L?01\r");
+                    Wire.endTransmission();
+                }
+                
+                // Comandos ESP32 Periscope Lightshow (:PEQxx)
+                else if (strncmp(SerialBuffer, ":PEQ", 4) == 0) {
+                    int mode = atoi(&SerialBuffer[4]);
+                    if (mode >= 0 && mode <= 20) {
+                        Serial3.print("Q");
+                        Serial3.println(mode);
+                        Serial.print("Serial3 TX -> Q");
+                        Serial.println(mode);
+                    }
+                }
+            }
+
+            memset(SerialBuffer, 0x00, SERIALBUFFERSIZE);
+            BufferIndex = 0;
+        }
+    }
+}
+
+
+void handleButtonInputs() {
+    buttonState =  digitalRead(buttonPin);
+    buttonState1 = digitalRead(buttonPin1);
+    buttonState2 = digitalRead(buttonPin2);
+    buttonState3 = digitalRead(buttonPin3);
+    buttonState4 = digitalRead(buttonPin4);
+    buttonState5 = digitalRead(buttonPin5);
+
+    if (buttonState != lastButtonState)     if (buttonState == LOW)  buttonPushCounter++;
+    if (buttonState1 != lastButtonState1)   if (buttonState1 == LOW) buttonPushCounter1++;
+    if (buttonState2 != lastButtonState2)   if (buttonState2 == LOW) buttonPushCounter2++;
+    if (buttonState3 != lastButtonState3)   if (buttonState3 == LOW) buttonPushCounter3++;
+    if (buttonState4 != lastButtonState4)   if (buttonState4 == LOW) buttonPushCounter4++;
+    if (buttonState5 != lastButtonState5)   if (buttonState5 == LOW) buttonPushCounter5++;
+}
+
+// =========================================================================
+//  LÓGICA DE MECANISMOS ORIGINAL (sin cambios)
+// =========================================================================
+
 void DomeZapperUp()
 {
+// ... (código original 142-147)
     switch (statezapup) {
     case ZAP_MOVE_TOP:
         if (ZTopVal != LOW) {
@@ -778,7 +796,6 @@ void DomeZapperUp()
             statezapup = ZAP_TOP;
         }
         break;
-
     case ZAP_TOP:
         if (ZTopVal == LOW) {
             digitalWrite(ZIN1, LOW);
@@ -790,6 +807,7 @@ void DomeZapperUp()
 
 void DomeZapperDown()
 {
+// ... (código original 148-152)
     switch (statezapdown) {
     case ZAP_MOVE_BOT:
         if (ZBotVal != LOW) {
@@ -798,7 +816,6 @@ void DomeZapperDown()
             statezapdown = ZAP_BOT;
         }
         break;
-
     case ZAP_BOT:
         if (ZBotVal == LOW) {
             digitalWrite(ZIN1, LOW);
@@ -819,6 +836,7 @@ void DomeZapperDown()
 
 void DomeZapper()
 {
+// ... (código original 153-165)
     switch (statez) {
     case 1:
         currentMillis = millis();
@@ -828,21 +846,22 @@ void DomeZapper()
             zapturnpreviousMillis = currentMillis;
         }
         break;
-
     case 2:
         currentMillis = millis();
-        pwm.setPWM(5, 0, ZAPTURNSERVOMAX);  // Giro
-        ZapLed();                           // Flashes se mantienen tal cual
+        pwm.setPWM(5, 0, ZAPTURNSERVOMAX);
+        // Giro
+        ZapLed();
+        // Flashes se mantienen tal cual
         if (currentMillis - zapturnpreviousMillis >= zapturninterval2) {
             statez = 3;
             zapturnpreviousMillis = currentMillis;
         }
         break;
-
     case 3:
         currentMillis = millis();
         if (currentMillis - zapturnpreviousMillis >= zapturninterval2) {
-            pwm.setPWM(5, 0, ZAPTURNSERVOMIN);  // Vuelve a posición base
+            pwm.setPWM(5, 0, ZAPTURNSERVOMIN);
+            // Vuelve a posición base
 
             zapperturncount++;
             if (zapperturncount >= ZAP_TURN_CYCLES) {
@@ -864,6 +883,7 @@ void DomeZapper()
 
 void ZapLed()
 {
+// ... (código original 166-174)
     switch (statezl) {
     case 0:
         currentMillis = millis();
@@ -873,7 +893,6 @@ void ZapLed()
             statezl = 1;
         }
         break;
-
     case 1:
         currentMillis = millis();
         pwm.setPWM(8, 0, 4096);
@@ -882,7 +901,6 @@ void ZapLed()
             statezl = 2;
         }
         break;
-
     case 2:
         currentMillis = millis();
         zapflashcount++;
@@ -902,6 +920,7 @@ void ZapLed()
 
 void PeriscopeUp()
 {
+// ... (código original 175-177)
     switch (statepup) {
     case P_MOVE_TOP:
         if (PTopVal != LOW) {
@@ -910,7 +929,6 @@ void PeriscopeUp()
             statepup = P_TOP;
         }
         break;
-
     case P_TOP:
         if (PTopVal == LOW) {
             digitalWrite(PEIN1, LOW);
@@ -922,6 +940,7 @@ void PeriscopeUp()
 
 void PeriscopeDown()
 {
+// ... (código original 178-182)
     statept = 0;
     pturncount = 0;
 
@@ -933,7 +952,6 @@ void PeriscopeDown()
             statepdown = P_BOT;
         }
         break;
-
     case P_BOT:
         if (PBotVal == LOW) {
             digitalWrite(PEIN1, LOW);
@@ -945,6 +963,7 @@ void PeriscopeDown()
 
 void PeriscopeTurn()
 {
+// ... (código original 183-191)
     switch (statept) {
     case 0:
         currentMillis = millis();
@@ -954,7 +973,6 @@ void PeriscopeTurn()
             statept = 1;
         }
         break;
-
     case 1:
         currentMillis = millis();
         if (currentMillis - pturnpreviousMillis >= pturninterval) {
@@ -963,7 +981,6 @@ void PeriscopeTurn()
             statept = 2;
         }
         break;
-
     case 2:
         currentMillis = millis();
         pturncount++;
@@ -983,6 +1000,7 @@ void PeriscopeTurn()
 
 void LifeformUp()
 {
+// ... (código original 192-195)
     switch (statelfup) {
     case LF_MOVE_TOP:
         if (LFTopVal != LOW) {
@@ -998,7 +1016,6 @@ void LifeformUp()
             statelfup = LF_TOP;
         }
         break;
-
     case LF_TOP:
         if (LFTopVal == LOW) {
             digitalWrite(LFIN1, LOW);
@@ -1010,6 +1027,7 @@ void LifeformUp()
 
 void LifeformDown()
 {
+// ... (código original 196-201)
     statelft = 0;
     lfturncount = 0;
 
@@ -1021,7 +1039,6 @@ void LifeformDown()
             statelfdown = LF_BOT;
         }
         break;
-
     case LF_BOT:
         if (LFBotVal == LOW) {
             digitalWrite(LFIN1, LOW);
@@ -1042,6 +1059,7 @@ void LifeformDown()
 
 void LFTurn()
 {
+// ... (código original 202-210)
     switch (statelft) {
     case 0:
         currentMillis = millis();
@@ -1051,7 +1069,6 @@ void LFTurn()
             statelft = 1;
         }
         break;
-
     case 1:
         currentMillis = millis();
         if (currentMillis - lfturnpreviousMillis >= lfturninterval) {
@@ -1060,7 +1077,6 @@ void LFTurn()
             statelft = 2;
         }
         break;
-
     case 2:
         currentMillis = millis();
         lfturncount++;
@@ -1078,6 +1094,7 @@ void LFTurn()
 
 void BadMotivatorUp()
 {
+// ... (código original 211-215)
     switch (statebmup) {
 
     case BM_MOVE_TOP:
@@ -1094,7 +1111,6 @@ void BadMotivatorUp()
             statebmup = BM_TOP;
         }
         break;
-
     case BM_TOP:
         if (BMTopVal == LOW) {
             digitalWrite(BMIN1, LOW);
@@ -1106,6 +1122,7 @@ void BadMotivatorUp()
 
 void BadMotivatorDown()
 {
+// ... (código original 216-220)
     switch (statebmdown) {
     case BM_MOVE_BOT:
         if (BMBotVal != LOW) {
@@ -1114,7 +1131,6 @@ void BadMotivatorDown()
             statebmdown = BM_BOT;
         }
         break;
-
     case BM_BOT:
         if (BMBotVal == LOW) {
 
@@ -1138,6 +1154,7 @@ void BadMotivatorDown()
 
 void LightsaberUp()
 {
+// ... (código original 221-225)
     switch (statelsup) {
     case LS_MOVE_TOP:
         if (LSTopVal != LOW) {
@@ -1153,7 +1170,6 @@ void LightsaberUp()
             statelsup = LS_TOP;
         }
         break;
-
     case LS_TOP:
         if (LSTopVal == LOW) {
             digitalWrite(LSIN1, LOW);
@@ -1165,6 +1181,7 @@ void LightsaberUp()
 
 void LightsaberDown()
 {
+// ... (código original 226-230)
     switch (statelsdown) {
     case LS_MOVE_BOT:
         if (LSBotVal != LOW) {
@@ -1173,7 +1190,6 @@ void LightsaberDown()
             statelsdown = LS_BOT;
         }
         break;
-
     case LS_BOT:
         if (LSBotVal == LOW) {
             digitalWrite(LSIN1, LOW);
@@ -1196,6 +1212,7 @@ void LightsaberDown()
 
 void DrinkServerUp()
 {
+// ... (código original 231-235)
     switch (statedsup) {
     case DS_MOVE_TOP:
         if (DSTopVal != LOW) {
@@ -1211,7 +1228,6 @@ void DrinkServerUp()
             statedsup = DS_TOP;
         }
         break;
-
     case DS_TOP:
         if (DSTopVal == LOW) {
             digitalWrite(DSIN1, LOW);
@@ -1223,6 +1239,7 @@ void DrinkServerUp()
 
 void DrinkServerDown()
 {
+// ... (código original 236-240)
     switch (statedsdown) {
     case DS_MOVE_BOT:
         if (DSBotVal != LOW) {
@@ -1231,7 +1248,6 @@ void DrinkServerDown()
             statedsdown = DS_BOT;
         }
         break;
-
     case DS_BOT:
         if (DSBotVal == LOW) {
 
@@ -1256,6 +1272,7 @@ void DrinkServerDown()
 
 void readlimits()
 {
+// ... (código original 241-242)
     PBotVal = digitalRead(PBot);
     PTopVal = digitalRead(PTop);
     BMTopVal = digitalRead(BMTop);
@@ -1275,6 +1292,7 @@ void readlimits()
 
 void servoSetup()
 {
+// ... (código original 243-246)
     pwm.setPWM(0, 0, BMSERVOMIN);
     pwm.setPWM(1, 0, ZSERVOMIN);
     pwm.setPWM(2, 0, LSSERVOMIN);
@@ -1283,9 +1301,9 @@ void servoSetup()
     pwm.setPWM(5, 0, ZAPTURNSERVOMIN);
     pwm.setPWM(6, 0, PETURNSERVOMIN);
     pwm.setPWM(7, 0, LFTURNSERVOMIN);
-
     pwm.setPWM(8, 0, 4096);   // Zapper LED
-    pwm.setPWM(9, 0, 4096);   // Bad Motivator LED
+    pwm.setPWM(9, 0, 4096);
+    // Bad Motivator LED
     pwm.setPWM(10, 0, 4096);  // Lifeform LED
 
     pwm.setPWM(11, 0, DRINKSERVOMIN);
@@ -1312,7 +1330,7 @@ void updatePeriscopeLight() {
 
 
 // ---------------------- FOG MACHINE CONTROL --------------------------
-// Enciende la máquina de humo cuando el Zapper llega al TOP (ZTopVal == LOW).
+// Enciende la máquina de humo cuando el Bad Motivator llega al TOP (BMTopVal == LOW).
 // La mantiene ON durante 5 segundos y la apaga si baja antes.
 void updateFogMachine() {
 
@@ -1345,10 +1363,12 @@ void updateFogMachine() {
 // ---------------------- SerialOut (debug) ----------------------------
 void SerialOut()
 {
+// ... (código original 255-257)
     Serial.print("B:");  Serial.print(buttonPushCounter);  Serial.print("\t");
     Serial.print("B1:"); Serial.print(buttonPushCounter1); Serial.print("\t");
     Serial.print("B2:"); Serial.print(buttonPushCounter2); Serial.print("\t");
-    Serial.print("B3:"); Serial.print(buttonPushCounter3); Serial.print("\t");
+    Serial.print("B3:"); Serial.print(buttonPushCounter3);
+    Serial.print("\t");
     Serial.print("B4:"); Serial.print(buttonPushCounter4); Serial.print("\t");
     Serial.print("B5:"); Serial.print(buttonPushCounter5); Serial.print("\t");
 
@@ -1356,7 +1376,8 @@ void SerialOut()
     Serial.print("ZTop:"); Serial.print(ZTopVal); Serial.print("\t");
     Serial.print("PBot:"); Serial.print(PBotVal); Serial.print("\t");
     Serial.print("PTop:"); Serial.print(PTopVal); Serial.print("\t");
-    Serial.print("BMBot:"); Serial.print(BMBotVal); Serial.print("\t");
+    Serial.print("BMBot:");
+    Serial.print(BMBotVal); Serial.print("\t");
     Serial.print("BMTop:"); Serial.print(BMTopVal); Serial.print("\t");
     Serial.print("LFBot:"); Serial.print(LFBotVal); Serial.print("\t");
     Serial.print("LFTop:"); Serial.print(LFTopVal); Serial.print("\t");
@@ -1372,4 +1393,3 @@ void SerialOut()
 /* ---------------------------------------------------------
    FIN DEL ARCHIVO
    --------------------------------------------------------- */
-
